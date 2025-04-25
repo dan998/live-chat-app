@@ -1,1 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Live Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    #login, #chat {
+      max-width: 500px;
+      margin: auto;
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+    #messages {
+      height: 300px;
+      overflow-y: auto;
+      background: #fff;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
+    li {
+      padding: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="login">
+    <h2>Join Chat Room</h2>
+    <input id="username" placeholder="Enter your name">
+    <button onclick="joinChat()">Join Chat</button>
+  </div>
 
+  <div id="chat" style="display: none;">
+    <p>Share this chat room:</p>
+    <input id="chatLink" readonly>
+    <button onclick="copyLink()">Copy Link</button>
+    <ul id="messages"></ul>
+    <form id="form">
+      <input id="input" autocomplete="off" placeholder="Type a message..." />
+      <button>Send</button>
+    </form>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const room = window.location.pathname.split('/')[1] || 'default';
+
+    function joinChat() {
+      const username = document.getElementById('username').value || 'Guest';
+      socket.emit('join-room', { room, username });
+
+      document.getElementById('login').style.display = 'none';
+      document.getElementById('chat').style.display = 'block';
+
+      fetch('/myip')
+        .then(res => res.json())
+        .then(data => {
+          const ip = data.ip.replace('::ffff:', '');
+          const link = `http://${ip}:3000/${room}`;
+          document.getElementById('chatLink').value = link;
+        });
+    }
+
+    function copyLink() {
+      const input = document.getElementById('chatLink');
+      input.select();
+      input.setSelectionRange(0, 99999);
+      document.execCommand("copy");
+      alert("Link copied: " + input.value);
+    }
+
+    const form = document.getElementById('form');
+    const input = document.getElementById('input');
+    const messages = document.getElementById('messages');
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (input.value) {
+        socket.emit('chat message', input.value);
+        input.value = '';
+      }
+    });
+
+    socket.on('chat message', function(msg) {
+      const item = document.createElement('li');
+      item.textContent = msg;
+      messages.appendChild(item);
+      messages.scrollTop = messages.scrollHeight;
+    });
+  </script>
+</body>
+</html>
